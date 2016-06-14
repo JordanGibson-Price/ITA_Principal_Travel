@@ -1,0 +1,24 @@
+db:
+  build: .
+  dockerfile: Dockerfile-DB
+  volumes:
+    - .:/sql
+web:
+  build: .
+  command: python manage.py runserver 0.0.0.0:8000
+  volumes:
+    - .:/code
+  ports:
+    - "8000:8000"
+  links:
+    - db
+  environment:
+    DJANGO_SETTINGS_MODULE: principal_travel.settings.dev
+    CI:
+    TRAVIS:
+    TRAVIS_BRANCH:
+    TRAVIS_COMMIT:
+    TRAVIS_JOB_NUMBER:
+    TRAVIS_PULL_REQUEST:
+    TRAVIS_JOB_ID:
+    TRAVIS_REPO_SLUG:

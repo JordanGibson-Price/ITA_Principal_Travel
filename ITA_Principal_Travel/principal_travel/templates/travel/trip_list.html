@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+{% block breadcrumbs %}
+  {{block.super}} » <a href="{% url 'trip_list' %}">Itineraries</a>
+{% endblock %}
+{% block content%}
+<h3>Itineraries<a href="{% url 'trip_new' %}" class="btn btn-success add-button">Add</a></h3>
+
+<div class="panel-group" id="accordion" role="tablist" aria-multiselectable="true">
+  <div class="panel panel-default">
+    <div class="panel-heading" role="tab" id="headingOne">
+      <h4 class="panel-title">
+        <a class="collapsed" role="button" data-toggle="collapse" data-parent="#accordion" href="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+          Search &amp; Filter
+        </a>
+      </h4>
+    </div>
+    <div id="collapseOne" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingOne">
+      <div class="panel-body">
+        <form action="" method="get">
+            {{ filter.form|crispy }}
+            <input type="submit" />
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div>
+  <table class="table table-hover">
+    <table class="sortable">
+    <thead class="thead-default">
+      <tr>
+        <th scope='col' class="sorttable_nosort"> Principal Name </th>
+        <th scope='col' class="sorttable_nosort"> Event Name </th>
+        <th scope='col' class="sorttable_mmdd"> Itinerary Start Date </th>
+        <th scope='col' class="sorttable_nosort"> Itinerary End Date </th>
+        <th scope='col' class="sorttable_nosort"> Itinerary Location(s) </th>
+      </tr>
+    </thead>
+    <tbody onclick="getElementById('row-info').click()" style="cursor: pointer">
+      {% for trip in object_list %}
+      <tr><a href="{% url 'trip_detail' pk=trip.pk %}">
+        <td><a class="table-links" href="{% url 'trip_detail' pk=trip.pk %}" id="row-info">{{trip.principal.first_name}} {{trip.principal.last_name}}</a></td>
+        <td><a class="table-links" href="{% url 'trip_detail' pk=trip.pk %}" id="row-info">{{trip.event_name}}</a></td>
+        <td><a class="table-links" href="{% url 'trip_detail' pk=trip.pk %}" id="row-info">{{trip.start_date}}</a></td>
+        <td><a class="table-links" href="{% url 'trip_detail' pk=trip.pk %}" id="row-info">{{trip.end_date}}</a></td>
+        <td><a class="table-links" href="{% url 'trip_detail' pk=trip.pk %}" id="row-info">{{trip.country}}</a></td>
+      </a></tr>
+      {% endfor%}
+    </tbody>
+  </table>
+  {% if is_paginated %}
+  {% include 'travel/_pagination.html' %}
+  {% endif %}
+</div>
+{% endblock%}

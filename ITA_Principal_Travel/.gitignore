@@ -1,0 +1,8 @@
+public/db/principal_travel.json
+*.pyc
+sql/ita_data.sql
+principal_travel/settings/local.py
+.coverage
+.env
+*.log
+nginx/htpasswd
