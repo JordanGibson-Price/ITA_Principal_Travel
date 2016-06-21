@@ -13,8 +13,13 @@ var drawBarGraph = function(data){
   .append('svg')
   .attr('width', '100%')
   .attr('height', '300');
-
-
+  function selectedValue(){
+      var value =<%=request.getParameter("selectedValue")%>;
+      if(value !=null)
+          {
+          document.f1.slvalue.selectedIndex=value ;
+          }
+  } //console.log(selectedValue());
   var tip = d3.tip()
     .attr("class", "d3-tip")
     .offset([-10, 0])
