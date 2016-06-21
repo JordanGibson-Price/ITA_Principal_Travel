@@ -14,7 +14,7 @@ class TripFilter(django_filters.FilterSet):
     region = django_filters.ModelChoiceFilter(queryset = Region.objects.all(), name='events__cities_light_country__custom_region')
     country = django_filters.ModelChoiceFilter(queryset = Country.objects.all(), name='events__cities_light_country__name')
     event_type = django_filters.ModelChoiceFilter(queryset = EventType.objects.all(), name='events__event_type', label='Event Type')
-
+    start_date = django_filters.NumberFilter(name='start_date')
     class Meta:
         model = Trip
         fields = []

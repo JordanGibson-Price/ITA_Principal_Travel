@@ -4,6 +4,7 @@
   {{block.super}} » <a href="{% url 'trip_list' %}">Itineraries</a>
 {% endblock %}
 {% block content%}
+{%load app_filters%}
 <h3>Itineraries<a href="{% url 'trip_new' %}" class="btn btn-success add-button">Add</a></h3>
 
 <div class="panel-group" id="accordion" role="tablist" aria-multiselectable="true">
@@ -28,13 +29,14 @@
 
 <div>
   <table class="table table-hover">
+    <table class="sortable">
     <thead class="thead-default">
       <tr>
-        <th scope='col'> Principal Name </th>
-        <th scope='col'> Event Name </th>
-        <th scope='col'> Itinerary Start Date </th>
-        <th scope='col'> Itinerary End Date </th>
-        <th scope='col'> Itinerary Location(s) </th>
+        <th scope='col' class="sorttable_nosort"> Principal Name </th>
+        <th scope='col' class="sorttable_nosort"> Event Name </th>
+        <th scope='col' class="sorttable_mmdd"> Itinerary Start Date </th>
+        <th scope='col' class="sorttable_nosort"> Itinerary End Date </th>
+        <th scope='col' class="sorttable_nosort"> Itinerary Location(s) </th>
       </tr>
     </thead>
     <tbody onclick="getElementById('row-info').click()" style="cursor: pointer">
