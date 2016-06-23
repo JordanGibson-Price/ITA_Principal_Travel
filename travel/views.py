@@ -1,18 +1,21 @@
-from .models import Trip, Event, Principal
-from .forms import TripForm, EventForm, PrincipalForm
+from travel.models import Trip, Event, Principal
+from travel.forms import TripForm, EventForm, PrincipalForm
 from django.views.generic import ListView, DetailView, TemplateView
-from .serializers import TripSerializer, EventSerializer
+from django.db.models import Q, Count, Func, F, Value
+from travel.serializers import TripSerializer, EventSerializer
 from rest_framework import viewsets
 from django.shortcuts import render, redirect, get_object_or_404
 from dal import autocomplete
-from cities_light.models import City
+from cities_light.models import City, Country
 from .mixins import FilterMixin
 from .filters import TripFilter
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
 from datetime import date
+from django.http import HttpResponse
 import calendar
+import datetime
 
 
 class LoginRequiredView(LoginRequiredMixin):
@@ -20,9 +23,9 @@ class LoginRequiredView(LoginRequiredMixin):
 
 
 class HealthCheckView(TemplateView):
-    ''' This is primarily for the ELB to be able to check that the instance is still up.
-        We need a separate URL to let ELB bypass HTTP Auth, or else it will stop routing
-        traffic to our instance.
+    ''' This is primarily for the ELB to be able to check that the instance is
+        still up. We need a separate URL to let ELB bypass HTTP Auth, or else it
+        will stop routing traffic to our instance.
     '''
     template_name = 'health.html'
 
@@ -50,7 +53,52 @@ class TripList(LoginRequiredView, FilterMixin, ListView):
 
     def get_queryset(self, *args, **kwargs):
         qs = super(TripList, self).get_queryset(*args, **kwargs)
+        context_object_name = 'trip_list_in_order'
         return qs
+    queryset = Trip.objects.order_by("start_date")
+
+
+    def get_context_data(self,**kwargs):
+        context = super(TripList, self).get_context_data(**kwargs)
+        page_query_dict = self.request.GET
+        page_URL = self.request.get_full_path()
+        page_URL_length = len(page_URL)
+
+        if page_URL_length > 13 :
+
+            month = page_query_dict['month']
+            region = page_query_dict['region']
+            principal_title = page_query_dict['principal_title']
+            date_range_end = page_query_dict['date_range_end']
+            date_range_start = page_query_dict['date_range_start']
+            country_ID = page_query_dict['country']
+            country_ID_2 = len(country_ID)
+            principal_name = page_query_dict['principal_name']
+            event_type = page_query_dict['event_type']
+            year = page_query_dict['year']
+            quick_dates = page_query_dict['quick_dates']
+            event_name = page_query_dict['event_name']
+            event_description = page_query_dict['event_description']
+
+            context['event_name'] = event_name
+            context['event_description'] = event_description
+            context['date_range_start'] = date_range_start
+            context['date_range_end'] = date_range_end
+            context['month'] = month
+            context['region'] = region
+            context['principal_title'] = principal_title
+            context['principal_name'] = principal_name
+            context['event_type'] = event_type
+            context['year'] = year
+            context['quick_dates'] = quick_dates
+
+            if country_ID_2 > 0 :
+                country = Country.objects.get(id=country_ID)
+                context['country'] = country
+            else :
+                context['country'] = country_ID
+
+        return context
 
 
 @login_required(login_url='/accounts/login/')
@@ -191,39 +239,53 @@ def dashboard_view(request):
 
 
 class TripViewSet(LoginRequiredView, viewsets.ModelViewSet):
-    queryset = Trip.objects.all()
     serializer_class = TripSerializer
+    def get_queryset(self):
+        queryset = Trip.objects.all()
+        destination = self.request.query_params.get('destination', None)
+        if destination is not None:
+            if destination == "international":
+                queryset = queryset.exclude(events__cities_light_country__id=234)
+            elif destination == "domestic":
+                queryset = queryset.filter(events__cities_light_country__id=234)
+        return queryset
+
 
 
 class EventViewSet(LoginRequiredView, viewsets.ModelViewSet):
-    queryset = Event.objects.all()
     serializer_class = EventSerializer
+    def get_queryset(self):
+        queryset = Event.objects.all()
+        destination = self.request.query_params.get('destination', None)
+        if destination is not None:
+            if destination == "international":
+                queryset = queryset.exclude(cities_light_country__id=234)
+            elif destination == "domestic":
+                queryset = queryset.filter(cities_light_country__id=234)
+        return queryset
 
 
 class CityAutocomplete(LoginRequiredView, autocomplete.Select2QuerySetView):
     def get_queryset(self):
-        # Don't forget to filter out results depending on the visitor !
-        # if not self.request.user.is_authenticated():
-        #     return City.objects.none()
-
         qs = City.objects.all()
         if self.q:
             qs = qs.filter(name__istartswith=self.q)
-
         return qs
 
+class EventNameAutocomplete(LoginRequiredView, autocomplete.Select2QuerySetView):
+    def get_queryset(self):
+        qs = Event.objects.all()
+        if self.q:
+            qs = qs.filter(name__istartswith=self.q)
+        return qs
 
 class ReportView(LoginRequiredView, TemplateView):
     template_name = 'travel/report.html'
 
     def get_context_data(self, **kwargs):
         context = super(ReportView, self).get_context_data(**kwargs)
-        current_year = self.request.GET.get('year')
-        report_type = self.request.GET.get('by')
-        if current_year is None:
-            current_year = (date.today()).year
-        if report_type is None:
-            report_type = 'country'
+        current_year = self.request.GET.get('year', date.today().year)
+        report_type = self.request.GET.get('by', 'country')
         # Generating lists for template use
         unique_reporting_years = []
         years = Trip.objects.dates('start_date', 'year')
@@ -233,39 +295,74 @@ class ReportView(LoginRequiredView, TemplateView):
         for i in range(1, 13):
             month_names.append([i, calendar.month_name[i]])
         # Generating reports
-        data = []
         countries = None
         eventtypes = None
         regions = None
         if report_type == 'country':
-            countries = Trip.objects.filter(start_date__year=current_year). values_list('events__cities_light_country__name', 'events__cities_light_country__id').distinct()
+            countries = Trip.objects.filter(start_date__year=current_year) \
+                .values_list(
+                    'events__cities_light_country__name',
+                    'events__cities_light_country__id'
+                ).distinct()
         elif report_type == 'event':
-            eventtypes = Trip.objects.filter(start_date__year=current_year).values_list('events__event_type__name', 'events__event_type__id').distinct()
+            eventtypes = Trip.objects.filter(start_date__year=current_year) \
+                .values_list(
+                    'events__event_type__name',
+                    'events__event_type__id'
+                ).distinct()
         elif report_type == 'region':
-            regions = Trip.objects.filter(start_date__year=current_year).values_list('events__cities_light_country__custom_region__name', 'events__cities_light_country__custom_region__id').distinct()
+            regions = Trip.objects.filter(start_date__year=current_year) \
+                .values_list(
+                    'events__cities_light_country__agency_region__name',
+                    'events__cities_light_country__agency_region__id'
+                ).distinct()
             print(regions)
+            print(regions.query)
 
-        months = Trip.objects.filter(start_date__year=current_year).dates('start_date', 'month')
-        for month in months:
-            month = month.strftime('%m')
-            if countries:
-                context['attributes'] = countries
-                context['query_string'] = 'country'
-                for country in countries:
-                    trip_count = Trip.objects.filter(start_date__year=current_year).filter(start_date__month=month).filter(events__cities_light_country__name=country[0]).count()
-                    data.append({'month': month[1], 'attribute_name': country[0], 'attribute_id': country[1], 'count': trip_count})
-            elif eventtypes:
-                context['attributes'] = eventtypes
-                context['query_string'] = 'event_type'
-                for eventtype in eventtypes:
-                    trip_count = Trip.objects.filter(start_date__year=current_year).filter(start_date__month=month).filter(events__event_type__name=eventtype[0]).count()
-                    data.append({'month': month[1], 'attribute_name': eventtype[0], 'attribute_id': eventtype[1], 'count': trip_count})
-            elif regions:
-                context['attributes'] = regions
-                context['query_string'] = 'region'
-                for region in regions:
-                    trip_count = Trip.objects.filter(start_date__year=current_year).filter(start_date__month=month).filter(events__cities_light_country__custom_region__name=region[0]).count()
-                    data.append({'month': month[1], 'attribute_name': region[0], 'attribute_id': region[1], 'count': trip_count})
+        if countries:
+            context['attributes'] = list(countries)
+            context['query_string'] = 'country'
+            country_names = [x[0] for x in countries]
+            resultset = _report_queryset_by_attr(
+                current_year=current_year,
+                attr_set=country_names,
+                orig_name='events__cities_light_country__name',
+                orig_id='events__cities_light_country__id',
+                new_name='country_name',
+                new_id='country_id'
+            )
+            data = _munge_data(resultset, 'country_name')
+
+        elif eventtypes:
+            context['attributes'] = list(eventtypes)
+            context['query_string'] = 'event_type'
+            resultset = _report_queryset_by_attr(
+                current_year=current_year,
+                attr_set=[x[0] for x in eventtypes],
+                orig_name='events__event_type__name',
+                orig_id='events__event_type__id',
+                new_name='event_type_name',
+                new_id='event_type_id'
+            )
+            data = _munge_data(resultset, 'event_type_name')
+
+        elif regions:
+            context['attributes'] = list(regions)
+            context['query_string'] = 'region'
+            queryset = Trip.objects.filter(Q(start_date__year=current_year)
+                & (
+                    Q(events__cities_light_country__agency_region__name__in=[x[0] for x in regions])
+                    | Q(events__cities_light_country__agency_region__isnull=True)
+                   )
+            )
+            resultset = _group_by_and_count(
+                queryset=queryset,
+                orig_name='events__cities_light_country__agency_region__name',
+                orig_id='events__cities_light_country__agency_region__id',
+                new_name='region_name',
+                new_id='region_id'
+            )
+            data = _munge_data(resultset, 'region_name')
 
         context['year'] = current_year
         context['data_list'] = data
@@ -273,3 +370,29 @@ class ReportView(LoginRequiredView, TemplateView):
         context['annual_report_list'] = unique_reporting_years
         context['report_type_list'] = ['country', 'region', 'event']
         return context
+
+def _report_queryset_by_attr(*args, **kwargs):
+    queryset = _base_queryset_filters(*args, **kwargs)
+    return _group_by_and_count(queryset, *args, **kwargs)
+
+def _group_by_and_count(queryset, *args, **kwargs):
+    return queryset \
+        .annotate(month=Func(Value('month'), F('start_date'), function='date_part', template='%(function)s(%(expressions)s)::int')) \
+        .values('month', kwargs['orig_name'], kwargs['orig_id']) \
+        .annotate(**{'count': Count('*'), kwargs['new_name']: F(kwargs['orig_name']), kwargs['new_id']: F(kwargs['orig_id'])}) \
+        .values('month', 'count', kwargs['new_id'], kwargs['new_name']) \
+        .order_by(kwargs['new_id'], 'month')
+
+def _base_queryset_filters(*args, **kwargs):
+    return Trip.objects \
+        .filter(Q(start_date__year=kwargs.get('current_year', 2016)) & Q(**{kwargs['orig_name'] + '__in': kwargs['attr_set']})) \
+
+def _munge_data(resultset, attr_y):
+    data = {}
+    for r in resultset:
+        if not data.get(r[attr_y]):
+            data[r[attr_y]] = {}
+        if not data[r[attr_y]].get(r['month']):
+            data[r[attr_y]][r['month']] = {}
+        data[r[attr_y]][r['month']] = r['count']
+    return data
