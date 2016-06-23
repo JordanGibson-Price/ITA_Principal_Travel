@@ -1,4 +1,4 @@
-from travel.models import Trip, Event, Principal
+from travel.models import Trip, Event, Principal, EventType
 from travel.forms import TripForm, EventForm, PrincipalForm
 from django.views.generic import ListView, DetailView, TemplateView
 from django.db.models import Q, Count, Func, F, Value
@@ -16,6 +16,7 @@ from datetime import date
 from django.http import HttpResponse
 import calendar
 import datetime
+from django_filters import DateRangeFilter
 
 
 class LoginRequiredView(LoginRequiredMixin):
@@ -99,6 +100,26 @@ class TripList(LoginRequiredView, FilterMixin, ListView):
 
         return context
 
+        page_query_dict = self.request.GET.copy()
+
+        for key, value in page_query_dict.items():
+            if key == 'country' and value != '':
+                value = Country.objects.get(id=value)
+                context[key] = value
+            elif key == 'event_type' and value != '':
+                value = EventType.objects.filter(id=value).values()[0]['name']
+                context[key] = value
+            elif key == 'quick_dates':
+                if value != '':
+                    value = int(value)
+                    value = DateRangeFilter.options[value][0]
+                    context[key] = value
+                else:
+                    context[key] = value
+            else:
+                context[key] = value
+
+        return context
 
 @login_required(login_url='/accounts/login/')
 def trip_new(request):
@@ -297,6 +318,7 @@ class ReportView(LoginRequiredView, TemplateView):
         countries = None
         eventtypes = None
         regions = None
+        principals = None
         if report_type == 'country':
             countries = Trip.objects.filter(start_date__year=current_year) \
                 .values_list(
@@ -317,6 +339,11 @@ class ReportView(LoginRequiredView, TemplateView):
                 ).distinct()
             print(regions)
             print(regions.query)
+        elif report_type == 'principal':
+            principals = Trip.objects.filter(start_date__year=current_year) \
+                .values_list(
+                    'principal__last_name', 'principal__id'
+                ).distinct()
 
         if countries:
             context['attributes'] = list(countries)
@@ -345,6 +372,19 @@ class ReportView(LoginRequiredView, TemplateView):
             )
             data = _munge_data(resultset, 'event_type_name')
 
+        elif principals:
+            context['attributes'] = list(principals)
+            context['query_string'] = 'principal'
+            resultset = _report_queryset_by_attr(
+                current_year=current_year,
+                attr_set=[x[0] for x in principals],
+                orig_name='principal__last_name',
+                orig_id='principal__id',
+                new_name='principal_name',
+                new_id='principal_id'
+            )
+            data = _munge_data(resultset, 'principal_name')
+
         elif regions:
             context['attributes'] = list(regions)
             context['query_string'] = 'region'
@@ -363,11 +403,12 @@ class ReportView(LoginRequiredView, TemplateView):
             )
             data = _munge_data(resultset, 'region_name')
 
+
         context['year'] = current_year
         context['data_list'] = data
         context['months'] = month_names
         context['annual_report_list'] = unique_reporting_years
-        context['report_type_list'] = ['country', 'region', 'event']
+        context['report_type_list'] = ['country', 'region', 'event', 'principal']
         return context
 
 def _report_queryset_by_attr(*args, **kwargs):

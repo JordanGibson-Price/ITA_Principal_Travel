@@ -1,6 +1,5 @@
 {% extends 'base.html' %}
 {% load app_filters %}
-
 {% block content %}
 <div class="dropdown">
   <input type="button" name="selectedValue" value="show"/>
@@ -10,11 +9,7 @@
   </button>
   <ul class="dropdown-menu" aria-labelledby="dLabel">
     {% for annual_report in annual_report_list %}
-<<<<<<< HEAD
-    <li><a  id="dLabel" data-target="#" href="{% url 'report' %}?year={{annual_report}}" data-toggle="dropdown" role="button">{{annual_report}}</a></li>
-=======
     <li><a href="?{% current_url request 'year' annual_report %}">{{annual_report}}</a></li>
->>>>>>> d0a5e4c48f51a35e91b857a1a92fbdf64f370ee0
     {% endfor %}
   </ul>
 </div>
@@ -26,11 +21,7 @@
   </button>
   <ul class="dropdown-menu" aria-labelledby="dLabel">
     {% for report_type in report_type_list %}
-<<<<<<< HEAD
-    <li><a id="dLabel" data-target="#" href="{% url 'report' %}?by={{report_type}}" data-toggle="dropdown" role="button">{{report_type}}</a></li>
-=======
     <li><a href="?{% current_url request 'by' report_type %}"> {{report_type}}</a></li>
->>>>>>> d0a5e4c48f51a35e91b857a1a92fbdf64f370ee0
     {% endfor %}
   </ul>
 </div>

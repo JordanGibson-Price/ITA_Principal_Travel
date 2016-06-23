@@ -13,17 +13,7 @@ var drawBarGraph = function(data){
   .append('svg')
   .attr('width', '100%')
   .attr('height', '300');
-<<<<<<< HEAD
-  function selectedValue(){
-      var value =<%=request.getParameter("selectedValue")%>;
-      if(value !=null)
-          {
-          document.f1.slvalue.selectedIndex=value ;
-          }
-  } //console.log(selectedValue());
-=======
 
->>>>>>> d0a5e4c48f51a35e91b857a1a92fbdf64f370ee0
   var tip = d3.tip()
     .attr("class", "d3-tip")
     .offset([-10, 0])
@@ -210,9 +200,9 @@ var getData = function(destination){
   var tripData, eventData;
   var reports = [{type: 'principal', title: 'Top Travelers'}, {type: 'eventType', title: 'Top Event Types'}];
   if (destination === 'domestic'){
-    reports.push({type: 'state', title: 'Top States'});
+    reports.unshift({type: 'state', title: 'Top States'});
   } else if (destination === 'international'){
-    reports.push({type: 'country', title: 'Top Countries'});
+    reports.unshift({type: 'country', title: 'Top Countries'});
   }
   $.getJSON('/api/events?destination='+destination)
     .done(function(data){
@@ -242,7 +232,7 @@ $(document).ready(function(){
 
   $('#dashtoggle').on('switchChange.bootstrapSwitch', function(event, state) {
     if(state){ //true state is the default: international
-      getData('internaional');
+      getData('international');
     } else {
       getData('domestic');
     }
