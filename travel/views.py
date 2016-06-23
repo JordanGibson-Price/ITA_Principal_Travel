@@ -55,7 +55,7 @@ class TripList(LoginRequiredView, FilterMixin, ListView):
     def get_queryset(self, *args, **kwargs):
         qs = super(TripList, self).get_queryset(*args, **kwargs)
         return qs
-    queryset = Trip.objects.order_by("start_date")
+    queryset = Trip.objects.order_by("-start_date")
 
 
     def get_context_data(self,**kwargs):
