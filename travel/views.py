@@ -53,7 +53,10 @@ class TripList(LoginRequiredView, FilterMixin, ListView):
 
     def get_queryset(self, *args, **kwargs):
         qs = super(TripList, self).get_queryset(*args, **kwargs)
+        context_object_name = 'trip_list_in_order'
         return qs
+    queryset = Trip.objects.order_by("start_date")
+
 
     def get_context_data(self,**kwargs):
         context = super(TripList, self).get_context_data(**kwargs)
@@ -61,9 +64,9 @@ class TripList(LoginRequiredView, FilterMixin, ListView):
         page_URL = self.request.get_full_path()
         page_URL_length = len(page_URL)
 
-        if page_URL_length > 13 :         
+        if page_URL_length > 13 :
 
-            month = page_query_dict['month']            
+            month = page_query_dict['month']
             region = page_query_dict['region']
             principal_title = page_query_dict['principal_title']
             date_range_end = page_query_dict['date_range_end']
@@ -95,7 +98,7 @@ class TripList(LoginRequiredView, FilterMixin, ListView):
             else :
                 context['country'] = country_ID
 
-        return context 
+        return context
 
 
 @login_required(login_url='/accounts/login/')
