@@ -12,6 +12,7 @@ class TimeStampedModel(models.Model):
         abstract = True
 
 
+
 @with_author  # adds and maintains 'author' and 'updated_by' fields
 class Event(TimeStampedModel):
     id = models.AutoField(primary_key=True)
